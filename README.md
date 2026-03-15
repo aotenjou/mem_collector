@@ -94,7 +94,6 @@ PG_CONFIG ?= /usr/lib/postgresql/12/bin/pg_config
 ## Build
 
 ```bash
-cd mem_collector
 make
 sudo make install
 ```
