@@ -1,0 +1,9 @@
+*.o
+*.bc
+*.so
+libmem_collector.a
+libmem_collector.pc
+
+*.log
+*.tmp
+.DS_Store

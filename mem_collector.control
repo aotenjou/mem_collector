@@ -1,0 +1,4 @@
+comment = 'Memory collection hooks, planner capture, and BGW aggregation'
+default_version = '1.0'
+module_pathname = '$libdir/mem_collector'
+relocatable = false
