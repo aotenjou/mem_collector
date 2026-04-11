@@ -171,6 +171,7 @@ bool mem_collector_lookup_feature(uint64 feature_id, QueryFeatureEntry *out);
 bool mem_collector_lookup_feature_by_query_id(uint64 query_id, QueryFeatureEntry *out);
 void mem_collector_push_sample(QuerySampleEntry *entry);
 int mem_collector_collect_samples(QuerySampleEntry *out, int limit, bool only_unflushed);
+int mem_collector_collect_features(QueryFeatureEntry *out, int limit);
 void mem_collector_mark_sample_flushed(uint64 sample_id);
 FeatureSnapshot mem_collector_snapshot_features(void);
 SampleSnapshot mem_collector_snapshot_samples(void);

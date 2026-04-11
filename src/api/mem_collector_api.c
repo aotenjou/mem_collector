@@ -46,7 +46,8 @@ mem_collector_features(PG_FUNCTION_ARGS)
     Tuplestorestate *tupstore;
     MemoryContext per_query_ctx;
     MemoryContext oldcontext;
-    FeatureSnapshot snapshot;
+    QueryFeatureEntry *entries;
+    int count;
     int i;
 
     if (rsinfo == NULL || !IsA(rsinfo, ReturnSetInfo)) {
@@ -57,7 +58,11 @@ mem_collector_features(PG_FUNCTION_ARGS)
         ereport(ERROR, (errmsg("materialize mode required")));
     }
 
-    per_query_ctx = rsinfo->econtext->ecxt_per_query_memory;
+    if (rsinfo->econtext != NULL) {
+        per_query_ctx = rsinfo->econtext->ecxt_per_query_memory;
+    } else {
+        per_query_ctx = CurrentMemoryContext;
+    }
     tupdesc = CreateTemplateTupleDesc(11);
     TupleDescInitEntry(tupdesc, (AttrNumber) 1, "feature_id", INT8OID, -1, 0);
     TupleDescInitEntry(tupdesc, (AttrNumber) 2, "query_id", INT8OID, -1, 0);
@@ -77,15 +82,18 @@ mem_collector_features(PG_FUNCTION_ARGS)
     rsinfo->setResult = tupstore;
     rsinfo->setDesc = tupdesc;
 
-    snapshot = mem_collector_snapshot_features();
+    entries = (QueryFeatureEntry *) palloc0(sizeof(QueryFeatureEntry) * MEM_COLLECTOR_FEATURE_CAPACITY);
+    count = mem_collector_collect_features(entries, MEM_COLLECTOR_FEATURE_CAPACITY);
+
     oldcontext = MemoryContextSwitchTo(per_query_ctx);
-    for (i = 0; i < snapshot.count; ++i) {
+    for (i = 0; i < count; ++i) {
         Datum values[11];
         bool nulls[11];
-        mem_collector_fill_common_feature_values(&snapshot.entries[i], values, nulls);
+        mem_collector_fill_common_feature_values(&entries[i], values, nulls);
         tuplestore_putvalues(tupstore, tupdesc, values, nulls);
     }
     MemoryContextSwitchTo(oldcontext);
+    pfree(entries);
     tuplestore_donestoring(tupstore);
 
     PG_RETURN_NULL();
@@ -99,7 +107,8 @@ mem_collector_pending_samples(PG_FUNCTION_ARGS)
     Tuplestorestate *tupstore;
     MemoryContext per_query_ctx;
     MemoryContext oldcontext;
-    SampleSnapshot snapshot;
+    QuerySampleEntry *entries;
+    int count;
     int i;
 
     if (rsinfo == NULL || !IsA(rsinfo, ReturnSetInfo)) {
@@ -110,7 +119,11 @@ mem_collector_pending_samples(PG_FUNCTION_ARGS)
         ereport(ERROR, (errmsg("materialize mode required")));
     }
 
-    per_query_ctx = rsinfo->econtext->ecxt_per_query_memory;
+    if (rsinfo->econtext != NULL) {
+        per_query_ctx = rsinfo->econtext->ecxt_per_query_memory;
+    } else {
+        per_query_ctx = CurrentMemoryContext;
+    }
     tupdesc = CreateTemplateTupleDesc(15);
     TupleDescInitEntry(tupdesc, (AttrNumber) 1, "sample_id", INT8OID, -1, 0);
     TupleDescInitEntry(tupdesc, (AttrNumber) 2, "feature_id", INT8OID, -1, 0);
@@ -134,15 +147,18 @@ mem_collector_pending_samples(PG_FUNCTION_ARGS)
     rsinfo->setResult = tupstore;
     rsinfo->setDesc = tupdesc;
 
-    snapshot = mem_collector_snapshot_samples();
+    entries = (QuerySampleEntry *) palloc0(sizeof(QuerySampleEntry) * MEM_COLLECTOR_SAMPLE_CAPACITY);
+    count = mem_collector_collect_samples(entries, MEM_COLLECTOR_SAMPLE_CAPACITY, false);
+
     oldcontext = MemoryContextSwitchTo(per_query_ctx);
-    for (i = 0; i < snapshot.count; ++i) {
+    for (i = 0; i < count; ++i) {
         Datum values[15];
         bool nulls[15];
-        mem_collector_fill_common_sample_values(&snapshot.entries[i], values, nulls);
+        mem_collector_fill_common_sample_values(&entries[i], values, nulls);
         tuplestore_putvalues(tupstore, tupdesc, values, nulls);
     }
     MemoryContextSwitchTo(oldcontext);
+    pfree(entries);
     tuplestore_donestoring(tupstore);
 
     PG_RETURN_NULL();

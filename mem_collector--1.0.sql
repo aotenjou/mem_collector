@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS mem_window_samples (
 CREATE INDEX IF NOT EXISTS mem_window_samples_window_start_idx
     ON mem_window_samples (window_start);
 
-CREATE FUNCTION mem_collector_features()
+CREATE OR REPLACE FUNCTION mem_collector_features()
 RETURNS TABLE (
     feature_id bigint,
     query_id bigint,
@@ -52,10 +52,27 @@ RETURNS TABLE (
     is_ap boolean,
     planned_at timestamptz
 )
-AS 'MODULE_PATHNAME', 'mem_collector_features'
-LANGUAGE C STRICT;
+LANGUAGE SQL
+STABLE
+AS $$
+    SELECT
+        mqs.feature_id,
+        mqs.query_id,
+        mqs.backend_id,
+        NULL::integer AS proc_pid,
+        mqs.plan_seq,
+        mqs.max_sort_ratio,
+        mqs.max_hash_ratio,
+        mqs.max_hashagg_ratio,
+        mqs.parallel_ratio,
+        mqs.is_ap,
+        mqs.collected_at AS planned_at
+    FROM mem_query_samples AS mqs
+    ORDER BY mqs.collected_at DESC
+    LIMIT 4096
+$$;
 
-CREATE FUNCTION mem_collector_pending_samples()
+CREATE OR REPLACE FUNCTION mem_collector_pending_samples()
 RETURNS TABLE (
     sample_id bigint,
     feature_id bigint,
@@ -73,8 +90,29 @@ RETURNS TABLE (
     collected_at timestamptz,
     flushed boolean
 )
-AS 'MODULE_PATHNAME', 'mem_collector_pending_samples'
-LANGUAGE C STRICT;
+LANGUAGE SQL
+STABLE
+AS $$
+    SELECT
+        mqs.id::bigint AS sample_id,
+        mqs.feature_id,
+        mqs.query_id,
+        mqs.backend_id,
+        mqs.plan_seq,
+        mqs.max_sort_ratio,
+        mqs.max_hash_ratio,
+        mqs.max_hashagg_ratio,
+        mqs.parallel_ratio,
+        mqs.is_ap,
+        mqs.peak_mem_ratio,
+        mqs.spill_occurred,
+        mqs.estimation_error,
+        mqs.collected_at,
+        true AS flushed
+    FROM mem_query_samples AS mqs
+    ORDER BY mqs.id DESC
+    LIMIT 4096
+$$;
 
 CREATE FUNCTION mem_collector_flush_query_samples(limit_count integer DEFAULT 1024)
 RETURNS integer

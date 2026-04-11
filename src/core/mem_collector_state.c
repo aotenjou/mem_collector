@@ -109,6 +109,28 @@ mem_collector_collect_samples(QuerySampleEntry *out, int limit, bool only_unflus
     return count;
 }
 
+int
+mem_collector_collect_features(QueryFeatureEntry *out, int limit)
+{
+    int i;
+    int count = 0;
+
+    if (mem_state == NULL || out == NULL || limit <= 0) {
+        return 0;
+    }
+
+    LWLockAcquire(mem_state->lock, LW_SHARED);
+    for (i = 0; i < MEM_COLLECTOR_FEATURE_CAPACITY && count < limit; ++i) {
+        QueryFeatureEntry *entry = &mem_state->feature_ring[i];
+        if (entry->feature_id == 0) {
+            continue;
+        }
+        out[count++] = *entry;
+    }
+    LWLockRelease(mem_state->lock);
+    return count;
+}
+
 void
 mem_collector_mark_sample_flushed(uint64 sample_id)
 {
